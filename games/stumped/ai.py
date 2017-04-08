@@ -54,7 +54,134 @@ class AI(BaseAI):
             reason (str): The human readable string explaining why you won or lost.
         """
         # replace with your end logic
+
     def run_turn(self):
+        for lodge in self.player.lodges:
+            if lodge.beaver: continue
+            alive_beavers = len([beaver for beaver in self.player.beavers if beaver.health > 0])
+            job = random_element(self.game.jobs)
+            if alive_beavers < self.game.free_beavers_count or lodge.food >= job.cost:
+                print('Recruiting {} to {}'.format(job, lodge))
+                job.recruit(lodge)
+
+        for beaver in self.player.beavers:
+            self.do_something(beaver)
+            pass
+        return True
+
+    def do_something(self, beaver):
+        # if we have a beaver, and it's not distracted, and it is alive (health greater than 0)
+        if beaver and beaver.turns_distracted == 0 and beaver.health > 0:
+            # then let's try to do stuff with it
+
+            # 2. Try to move the beaver
+            if beaver.moves >= 2:
+            # then it has enough moves to move in any direction, so let's move it
+
+                # find a spawner to move to
+                target = None
+                for tile in self.game.tiles:
+                    if tile.spawner and tile.spawner.health > 1:
+                        # then we found a healthy spawner, let's target that tile to move to
+                        target = tile
+                        break
+
+                if target:
+                    # use the pathfinding algorithm below to make a path to the spawner's target tile
+                    path = self.find_path(beaver.tile, target)
+
+                    # if there is a path, move to it
+                    #      length 0 means no path could be found to the tile
+                    #      length 1 means the target is adjacent, and we can't move onto the same tile as the spawner
+                    #      length 2+ means we have to move towards it
+                    if len(path) > 1:
+                        print('Moving {} towards {}'.format(beaver, target))
+                        beaver.move(path[0])
+
+            # 3. Try to do an action on the beaver
+            if beaver.actions > 0:
+                # then let's try to do an action!
+
+                # Do a random action!
+                action = random_element(['build_lodge', 'attack', 'pickup', 'drop', 'harvest'])
+
+                # how much this beaver is carrying, used for calculations
+                load = beaver.branches + beaver.food
+
+                if action == 'build_lodge':
+                    # if the beaver has enough branches to build a lodge
+                    #   and the tile does not already have a lodge, then do so
+                    if (beaver.branches + beaver.tile.branches) >= self.player.branches_to_build_lodge and not beaver.tile.lodge_owner:
+                        print('{} building lodge'.format(beaver))
+                        beaver.build_lodge()
+
+                elif action == 'attack':
+                    # look at all our neighbor tiles and if they have a beaver attack it!
+                    for neighbor in shuffled(beaver.tile.get_neighbors()):
+                        if neighbor.beaver:
+                            print('{} attacking {}'.format(beaver, neighbor.beaver))
+                            beaver.attack(neighbor.beaver)
+                            break
+
+                elif action == 'pickup':
+                    # make an array of our neighboring tiles + our tile as all can be picked up from
+                    neighbors = beaver.tile.get_neighbors()
+                    neighbors.append(beaver.tile)
+                    pickup_tiles = shuffled(neighbors)
+
+                    # if the beaver can carry more resources, try to pick something up
+                    if load < beaver.job.carry_limit:
+                        for tile in pickup_tiles:
+                            # try to pickup branches
+                            if tile.branches > 0:
+                                print('{} picking up branches'.format(beaver))
+                                beaver.pickup(tile, 'branches', 1)
+                                break
+                            # try to pickup food
+                            elif tile.food > 0:
+                                print('{} picking up food'.format(beaver))
+                                beaver.pickup(tile, 'food', 1)
+                                break
+
+                elif action == 'drop':
+                    # choose a random tile from our neighbors + out tile to drop stuff on
+                    neighbors = beaver.tile.get_neighbors()
+                    neighbors.append(beaver.tile)
+                    drop_tiles = shuffled(neighbors)
+
+                    # find a valid tile to drop resources onto
+                    tile_to_drop_on = None
+                    for tile in drop_tiles:
+                        if not tile.spawner:
+                            tile_to_drop_on = tile
+                            break
+
+                    # if there is a tile that resources can be dropped on
+                    if tile_to_drop_on:
+                        # if we have branches to drop
+                        if beaver.branches > 0:
+                            print('{} dropping 1 branch'.format(beaver))
+                            beaver.drop(tile_to_drop_on, 'branches', 1)
+                        # or if we have food to drop
+                        elif beaver.food > 0:
+                            print('{} dropping 1 food'.format(beaver))
+                            beaver.drop(tile_to_drop_on, 'food', 1)
+
+                elif action == 'harvest':
+                    # if we can carry more, try to harvest something
+                    if load < beaver.job.carry_limit:
+                        # try to find a neighboring tile with a spawner on it to harvest from
+                        for neighbor in shuffled(beaver.tile.get_neighbors()):
+                            # if it has a spawner on that tile, harvest from it
+                            if neighbor.spawner:
+                                print('{} harvesting {}'.format(beaver, neighbor.spawner))
+                                beaver.harvest(neighbor.spawner)
+                                break
+
+
+
+
+    def shellAI_run_turn(self):
         """ This is called every time it is this AI.player's turn.
 
         Returns:
