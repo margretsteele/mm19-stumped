@@ -25,6 +25,8 @@ def shuffled(a):
 
     return None
 
+JOBS = {}
+
 class AI(BaseAI):
     """ The basic AI functions that are the same between games. """
 
@@ -40,6 +42,8 @@ class AI(BaseAI):
         """ This is called once the game starts and your AI knows its playerID and game. You can initialize your AI here.
         """
         # replace with your start logic
+        for job in self.game.jobs:
+            JOBS[job.title] = job
 
     def game_updated(self):
         """ This is called every time the game's state updates, so if you are tracking anything you can update it here.
@@ -59,7 +63,7 @@ class AI(BaseAI):
         for lodge in self.player.lodges:
             if lodge.beaver: continue
             alive_beavers = len([beaver for beaver in self.player.beavers if beaver.health > 0])
-            job = random_element(self.game.jobs)
+            job = JOBS['Builder']
             if alive_beavers < self.game.free_beavers_count or lodge.food >= job.cost:
                 print('Recruiting {} to {}'.format(job, lodge))
                 job.recruit(lodge)
@@ -102,20 +106,18 @@ class AI(BaseAI):
             if beaver.actions > 0:
                 # then let's try to do an action!
 
-                # Do a random action!
-                action = random_element(['build_lodge', 'attack', 'pickup', 'drop', 'harvest'])
-
                 # how much this beaver is carrying, used for calculations
                 load = beaver.branches + beaver.food
 
-                if action == 'build_lodge':
-                    # if the beaver has enough branches to build a lodge
-                    #   and the tile does not already have a lodge, then do so
-                    if (beaver.branches + beaver.tile.branches) >= self.player.branches_to_build_lodge and not beaver.tile.lodge_owner:
-                        print('{} building lodge'.format(beaver))
-                        beaver.build_lodge()
+                # if can lodge, lodge yo
+                if (beaver.branches + beaver.tile.branches) >= self.player.branches_to_build_lodge and not beaver.tile.lodge_owner:
+                    print('{} building lodge'.format(beaver))
+                    beaver.build_lodge()
 
-                elif action == 'attack':
+                # Do a random action!
+                action = random_element(['attack', 'pickup', 'drop', 'harvest'])
+
+                if action == 'attack':
                     # look at all our neighbor tiles and if they have a beaver attack it!
                     for neighbor in shuffled(beaver.tile.get_neighbors()):
                         if neighbor.beaver:
@@ -173,7 +175,7 @@ class AI(BaseAI):
                         # try to find a neighboring tile with a spawner on it to harvest from
                         for neighbor in shuffled(beaver.tile.get_neighbors()):
                             # if it has a spawner on that tile, harvest from it
-                            if neighbor.spawner:
+                            if neighbor.spawner and neighbor.lodge_owner != self.player:
                                 print('{} harvesting {}'.format(beaver, neighbor.spawner))
                                 beaver.harvest(neighbor.spawner)
                                 break
