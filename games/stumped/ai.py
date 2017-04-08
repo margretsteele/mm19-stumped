@@ -3,6 +3,7 @@
 from joueur.base_ai import BaseAI
 from math import floor, ceil
 from random import random
+import collections
 
 # Simply returns a random element of an array
 def random_element(items):
@@ -58,26 +59,40 @@ class AI(BaseAI):
         # replace with your end logic
 
     def run_turn(self):
+        EMPLOYED_BEAVERS = collections.defaultdict(int)
+        for beaver in self.player.beavers:
+            EMPLOYED_BEAVERS[beaver.job] += 1
+
         for lodge in self.player.lodges:
             if lodge.beaver: continue
             alive_beavers = len([beaver for beaver in self.player.beavers if beaver.health > 0])
-            job = JOBS['Builder']
+            builder = JOBS['Builder']
+            fighter = JOBS['Fighter']
+
+            job = fighter if EMPLOYED_BEAVERS[fighter] < 3 else builder
             if alive_beavers < self.game.free_beavers_count or lodge.food >= job.cost:
                 print('Recruiting {} to {}'.format(job, lodge))
                 job.recruit(lodge)
 
         for beaver in self.player.beavers:
             self.do_something(beaver)
-            pass
         return True
 
     def do_something(self, beaver):
         if beaver and beaver.turns_distracted == 0 and beaver.health > 0:
             if beaver.moves >= 2:
-                path = self.find_path_to_goal(beaver.tile, self.source_of_sticks)
+                if beaver.job == JOBS['Fighter']:
+                    path = self.find_path_to_goal(beaver.tile, self.punching_bag)
+                else:
+                    path = self.find_path_to_goal(beaver.tile, self.source_of_sticks)
+                if beaver.tile.lodge_owner == self.player:
+                    path = self.find_path_to_goal(beaver.tile, self.not_my_lodge)
+                    if len(path) > 0:
+                        beaver.move(path[0])
                 if len(path) > 1:
                     print('Moving {} towards {}'.format(beaver, path[-1]))
                     beaver.move(path[0])
+
 
             if beaver.actions > 0:
                 load = beaver.branches + beaver.food
@@ -88,11 +103,13 @@ class AI(BaseAI):
                     beaver.build_lodge()
 
                 # Do a random action!
-                action = random_element(['attack', 'pickup', 'drop', 'harvest'])
+                action = random_element(['pickup', 'drop', 'harvest'])
+                if beaver.job == JOBS['Fighter']:
+                    action = 'attack'
 
                 if action == 'attack':
                     for neighbor in shuffled(beaver.tile.get_neighbors()):
-                        if neighbor.beaver:
+                        if neighbor.beaver and neighbor.beaver.owner == self.player.opponent:
                             print('{} attacking {}'.format(beaver, neighbor.beaver))
                             beaver.attack(neighbor.beaver)
                             break
@@ -173,7 +190,7 @@ class AI(BaseAI):
                         inspect = came_from[inspect.id]
                     return path
 
-                if neighbor and neighbor.id not in came_from and neighbor.is_pathable():
+                if neighbor and neighbor.id not in came_from and neighbor.is_pathable() and neighbor.lodge_owner != self.player:
                     fringe.append(neighbor)
                     came_from[neighbor.id] = inspect
 
@@ -186,7 +203,7 @@ class AI(BaseAI):
     # enemy beaver
     def punching_bag(self, t):
         """a tile where I can hit something"""
-        return t.beaver and t.beaver.owner == self.opponent
+        return t.beaver and t.beaver.owner == self.player.opponent
 
     # enemy lodge
     def bad_lodge(self, t):
@@ -197,3 +214,7 @@ class AI(BaseAI):
     def source_of_food(self, t):
         """a tile where I can pick up sticks"""
         return t.spawner and not t.spawner.has_been_harvested and t.spawner.type == 'food'
+
+    def not_my_lodge(self, t):
+        """not my lodge"""
+        return t.lodge_owner != self.player
