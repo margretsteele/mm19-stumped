@@ -73,29 +73,11 @@ class AI(BaseAI):
 
     def do_something(self, beaver):
         if beaver and beaver.turns_distracted == 0 and beaver.health > 0:
-
             if beaver.moves >= 2:
-
-                # find a spawner to move to
-                target = None
-                for tile in self.game.tiles:
-                    if tile.spawner and tile.spawner.health > 1:
-                        # then we found a healthy spawner, let's target that tile to move to
-                        target = tile
-                        break
-
-                if target:
-                    # use the pathfinding algorithm below to make a path to the spawner's target tile
-                    path = self.find_path_to_tile(beaver.tile, target)
-
-                    # if there is a path, move to it
-                    #      length 0 means no path could be found to the tile
-                    #      length 1 means the target is adjacent, and we can't move onto the same tile as the spawner
-                    #      length 2+ means we have to move towards it
-                    if len(path) > 1:
-                        print('Moving {} towards {}'.format(beaver, target))
-                        beaver.move(path[0])
-
+                path = self.find_path_to_goal(beaver.tile, self.source_of_sticks)
+                if len(path) > 1:
+                    print('Moving {} towards {}'.format(beaver, path[-1]))
+                    beaver.move(path[0])
 
             if beaver.actions > 0:
                 load = beaver.branches + beaver.food
@@ -122,6 +104,8 @@ class AI(BaseAI):
 
                     if load < beaver.job.carry_limit:
                         for tile in pickup_tiles:
+                            if tile.lodge_owner == self.player:
+                                continue
                             # try to pickup branches
                             if tile.branches > 0:
                                 print('{} picking up branches'.format(beaver))
@@ -194,3 +178,22 @@ class AI(BaseAI):
                     came_from[neighbor.id] = inspect
 
         return []
+
+    def source_of_sticks(self, t):
+        """a tile where I can pick up sticks"""
+        return t.spawner and not t.spawner.has_been_harvested and t.spawner.type == 'branches'
+
+    # enemy beaver
+    def punching_bag(self, t):
+        """a tile where I can hit something"""
+        return t.beaver and t.beaver.owner == self.opponent
+
+    # enemy lodge
+    def bad_lodge(self, t):
+        """a tile containing a hostile lodge"""
+        return t.lodge_owner == self.player.opponent
+
+    # food source
+    def source_of_food(self, t):
+        """a tile where I can pick up sticks"""
+        return t.spawner and not t.spawner.has_been_harvested and t.spawner.type == 'food'
