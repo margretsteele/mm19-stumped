@@ -168,7 +168,7 @@ class AI(BaseAI):
     def harvest(self, beaver):
         if beaver.branches < beaver.job.carry_limit:
             for neighbor in shuffled(beaver.tile.get_neighbors()):
-                if neighbor.spawner and neighbor.spawner.type == 'branches' and neighbor.lodge_owner != self.player:
+                if self.source_of_sticks(neighbor):
                     print('{} harvesting {}'.format(beaver, neighbor.spawner))
                     beaver.harvest(neighbor.spawner)
                     break
