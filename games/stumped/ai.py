@@ -60,6 +60,7 @@ class AI(BaseAI):
         # replace with your end logic
 
     def run_turn(self):
+        self.sing()
         EMPLOYED_BEAVERS = collections.defaultdict(int)
         self.claimed_tiles = set()
         for beaver in self.player.beavers:
@@ -250,49 +251,51 @@ class AI(BaseAI):
         """not my lodge"""
         return t.lodge_owner != self.player
 
+    def sing(self):
+        if len(self.player.beavers) < 1:
+            return
+        self.player.beavers[0].log(lyrics[(self.game.current_turn // 2) % len(lyrics)])
 
 lyrics = [
-    [
-        "Wynona's got herself",
-        "a big brown beaver",
-        "and she shows it off",
-        "to all her friends.",
-        "One day, you know,",
-        "that beaver tried to leave her,",
-        "so she caged him up",
-        "with cyclone fence.",
-        "Along came Lou",
-        "with the old baboon and said",
-        "\"I recognize that smell,",
-        "Smells like seven layers,",
-        "That beaver eatin' Taco Bell!\".",
-        "Now Rex he was a Texan",
-        "out of New Orleans",
-        "and he travelled with the carnival shows.",
-        "He ran bumper cars,",
-        "sucked cheap cigars",
-        "and he candied up his nose.",
-        "He got wind of the big brown beaver",
-        "So he thought he'd take himself a peek,",
-        "but the beaver was quick",
-        "and he grabbed him by the kiwis,",
-        "and he ain't pissed for a week.",
-        "(And a half!)",
-        "Wynona took her big brown beaver",
-        "and she stuck him up in the air,",
-        "said \"I sure do love",
-        "this big brown beaver",
-        "and I wish I did have a pair.",
-        "Now the beaver once slept",
-        "for seven days",
-        "And it gave us all an awful fright,",
-        "So I tickled his chin",
-        "and I gave him a pinch",
-        "and the bastard tried to bite me.",
-        "Wynona loved her big brown beaver",
-        "And she stroked him all the time.",
-        "She pricked her finger one day",
-        "and it occurred to her",
-        "she might have a porcupine.",
-    ],
+    "Wynona's got herself",
+    "a big brown beaver",
+    "and she shows it off",
+    "to all her friends.",
+    "One day, you know,",
+    "that beaver tried to leave her,",
+    "so she caged him up",
+    "with cyclone fence.",
+    "Along came Lou",
+    "with the old baboon and said",
+    "\"I recognize that smell,",
+    "Smells like seven layers,",
+    "That beaver eatin' Taco Bell!\".",
+    "Now Rex he was a Texan",
+    "out of New Orleans",
+    "and he travelled with the carnival shows.",
+    "He ran bumper cars,",
+    "sucked cheap cigars",
+    "and he candied up his nose.",
+    "He got wind of the big brown beaver",
+    "So he thought he'd take himself a peek,",
+    "but the beaver was quick",
+    "and he grabbed him by the kiwis,",
+    "and he ain't pissed for a week.",
+    "(And a half!)",
+    "Wynona took her big brown beaver",
+    "and she stuck him up in the air,",
+    "said \"I sure do love",
+    "this big brown beaver",
+    "and I wish I did have a pair.",
+    "Now the beaver once slept",
+    "for seven days",
+    "And it gave us all an awful fright,",
+    "So I tickled his chin",
+    "and I gave him a pinch",
+    "and the bastard tried to bite me.",
+    "Wynona loved her big brown beaver",
+    "And she stroked him all the time.",
+    "She pricked her finger one day",
+    "and it occurred to her",
+    "she might have a porcupine.",
 ]
