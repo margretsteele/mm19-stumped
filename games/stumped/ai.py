@@ -5,13 +5,6 @@ from math import floor, ceil
 from random import random
 import collections
 
-# Simply returns a random element of an array
-def random_element(items):
-    if items:
-        return items[floor(random()*len(items))]
-
-    return None
-
 # Simply returns a shuffled copy of an array
 def shuffled(a):
     if a:
@@ -75,6 +68,7 @@ class AI(BaseAI):
 
             job = cleanup if EMPLOYED_BEAVERS[cleanup] < 2 else builder
             job = bulky if EMPLOYED_BEAVERS[bulky] < 3 else job
+            job = builder if EMPLOYED_BEAVERS[builder] < 4 else job
             if alive_beavers < self.game.free_beavers_count or lodge.food >= job.cost:
                 print('Recruiting {} to {}'.format(job, lodge))
                 job.recruit(lodge)
