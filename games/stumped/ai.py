@@ -107,7 +107,7 @@ class AI(BaseAI):
 
             if beaver.actions > 0:
                 # if can lodge, lodge yo
-                if (beaver.branches + beaver.tile.branches) >= self.player.branches_to_build_lodge and not beaver.tile.lodge_owner:
+                if (beaver.branches + beaver.tile.branches) >= self.player.branches_to_build_lodge and not beaver.tile.lodge_owner and not beaver.tile.spawner:
                     print('{} building lodge'.format(beaver))
                     beaver.build_lodge()
 
@@ -131,30 +131,32 @@ class AI(BaseAI):
                     continue
                 # try to pickup branches
                 if tile.branches > 0:
-                    pick_up_amnt = min(beaver.job.carry_limit, tile.branches)
+                    pick_up_amnt = min((beaver.job.carry_limit - load), tile.branches)
                     print('{} picking up branches'.format(beaver))
                     beaver.pickup(tile, 'branches', pick_up_amnt)
                     break
                 # try to pickup food
                 elif tile.food > 0:
-                    pick_up_amnt = min(beaver.job.carry_limit, tile.food)
+                    pick_up_amnt = min((beaver.job.carry_limit - load), tile.food)
                     print('{} picking up food'.format(beaver))
-                    beaver.pickup(tile, 'food', 1)
+                    beaver.pickup(tile, 'food', pick_up_amnt)
                     break
         # drop
         else:
-            for neighbor in shuffled(beaver.tile.get_neighbors()):
-                tile_to_drop_on = None
+            tile_to_drop_on = None
+            neighbors = beaver.tile.get_neighbors()
+            drop_tiles = shuffled(neighbors)
+            for neighbor in drop_tiles:
                 if self.friendly_builder(neighbor):
                     tile_to_drop_on = neighbor
                     break
 
             if tile_to_drop_on:
                 if beaver.branches > 0:
-                    print('{} dropping 1 branch'.format(beaver))
+                    print('{} dropping {} branch'.format(beaver, beaver.branches))
                     beaver.drop(tile_to_drop_on, 'branches', beaver.branches)
                 elif beaver.food > 0:
-                    print('{} dropping 1 food'.format(beaver))
+                    print('{} dropping {} food'.format(beaver, beaver.food))
                     beaver.drop(tile_to_drop_on, 'food', beaver.food)
 
 
@@ -235,3 +237,50 @@ class AI(BaseAI):
     def not_my_lodge(self, t):
         """not my lodge"""
         return t.lodge_owner != self.player
+
+
+lyrics = [
+    [
+        "Wynona's got herself",
+        "a big brown beaver",
+        "and she shows it off",
+        "to all her friends.",
+        "One day, you know,",
+        "that beaver tried to leave her,",
+        "so she caged him up",
+        "with cyclone fence.",
+        "Along came Lou",
+        "with the old baboon and said",
+        "\"I recognize that smell,",
+        "Smells like seven layers,",
+        "That beaver eatin' Taco Bell!\".",
+        "Now Rex he was a Texan",
+        "out of New Orleans",
+        "and he travelled with the carnival shows.",
+        "He ran bumper cars,",
+        "sucked cheap cigars",
+        "and he candied up his nose.",
+        "He got wind of the big brown beaver",
+        "So he thought he'd take himself a peek,",
+        "but the beaver was quick",
+        "and he grabbed him by the kiwis,",
+        "and he ain't pissed for a week.",
+        "(And a half!)",
+        "Wynona took her big brown beaver",
+        "and she stuck him up in the air,",
+        "said \"I sure do love",
+        "this big brown beaver",
+        "and I wish I did have a pair.",
+        "Now the beaver once slept",
+        "for seven days",
+        "And it gave us all an awful fright,",
+        "So I tickled his chin",
+        "and I gave him a pinch",
+        "and the bastard tried to bite me.",
+        "Wynona loved her big brown beaver",
+        "And she stroked him all the time.",
+        "She pricked her finger one day",
+        "and it occurred to her",
+        "she might have a porcupine.",
+    ],
+]
