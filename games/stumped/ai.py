@@ -66,18 +66,19 @@ class AI(BaseAI):
         for beaver in self.player.beavers:
             EMPLOYED_BEAVERS[beaver.job] += 1
 
+        alive_beavers = len([beaver for beaver in self.player.beavers if beaver.health > 0])
         for lodge in self.player.lodges:
             if lodge.beaver: continue
-            alive_beavers = len([beaver for beaver in self.player.beavers if beaver.health > 0])
             builder = JOBS['Builder']
             fighter = JOBS['Fighter']
             cleanup = JOBS['Hungry']
 
-            job = cleanup if EMPLOYED_BEAVERS[cleanup] < 2 else builder
+            job = cleanup if EMPLOYED_BEAVERS[cleanup] < 3 else builder
             job = fighter if EMPLOYED_BEAVERS[fighter] < 3 else job
             if alive_beavers < self.game.free_beavers_count or lodge.food >= job.cost:
                 print('Recruiting {} to {}'.format(job, lodge))
                 job.recruit(lodge)
+                alive_beavers += 1
 
         for beaver in self.player.beavers:
             self.do_something(beaver)
@@ -123,6 +124,7 @@ class AI(BaseAI):
                 if (beaver.branches + beaver.tile.branches) >= self.player.branches_to_build_lodge and not beaver.tile.lodge_owner and not beaver.tile.spawner:
                     print('{} building lodge'.format(beaver))
                     beaver.build_lodge()
+                    return
 
                 if beaver.job == JOBS['Fighter']:
                     self.attack(beaver)
@@ -208,13 +210,12 @@ class AI(BaseAI):
             for neighbor in inspect.get_neighbors():
                 if predicate(neighbor):
                     path = [neighbor]
-
                     while inspect != start:
                         path.insert(0, inspect)
                         inspect = came_from[inspect.id]
                     return path
 
-                if neighbor and neighbor.id not in came_from and neighbor.is_pathable() and neighbor.lodge_owner != self.player:
+                if neighbor.id not in came_from and not neighbor.beaver and not neighbor.spawner and not neighbor.lodge_owner:
                     fringe.append(neighbor)
                     came_from[neighbor.id] = inspect
 
@@ -249,7 +250,7 @@ class AI(BaseAI):
 
     def not_my_lodge(self, t):
         """not my lodge"""
-        return t.lodge_owner != self.player
+        return t.lodge_owner is None and not t.beaver and not t.spawner
 
     def sing(self):
         if len(self.player.beavers) < 1:
