@@ -89,7 +89,7 @@ class AI(BaseAI):
         elif beaver.job == JOBS['Fighter']:
             path = self.find_path_to_goal(beaver.tile, self.punching_bag)
         elif beaver.job == JOBS['Hungry']:
-            if beaver.branches < beaver.job.carry_limit:
+            if beaver.branches + beaver.food < beaver.job.carry_limit:
                 path = self.find_path_to_goal(beaver.tile, self.pile_of_sticks)
             else:
                 path = self.find_path_to_goal(beaver.tile, self.friendly_builder)
