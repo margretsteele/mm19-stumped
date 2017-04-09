@@ -95,8 +95,7 @@ class AI(BaseAI):
             path = self.find_path_to_goal(beaver.tile, self.punching_bag)
         elif beaver.job == JOBS['Hungry']:
             if beaver.branches + beaver.food < beaver.job.carry_limit:
-                path = self.find_path_to_goal(beaver.tile, self.pile_of_sticks)
-                if path: self.claimed_tiles.add(path[-1])
+                path = self.find_path_to_goal(beaver.tile, self.bad_lodge)
             else:
                 path = self.find_path_to_goal(beaver.tile, self.friendly_builder)
         else:  # beaver.job == JOBS['Builder']
@@ -145,6 +144,18 @@ class AI(BaseAI):
             if tile.beaver and tile.beaver.owner == self.player.opponent and tile.beaver.turns_distracted == 0:
                 print('{} distracting {}'.format(beaver, tile.beaver))
                 beaver.attack(tile.beaver)
+                return
+
+        # if standing next to an enemy lodge, priority destroy
+        for n in beaver.tile.get_neighbors():
+            if n.lodge_owner and n.lodge_owner == self.player.opponent:
+                if load < beaver.job.carry_limit:
+                    amount = min(beaver.job.carry_limit - load, n.branches)
+                    print('{} raiding {} branches'.format(beaver, amount))
+                    beaver.pickup(n, 'branches', amount)
+                else:
+                    print('{} dropping {} branches so I can raid more'.format(beaver, beaver.amount))
+                    beaver.drop(beaver.tile, 'branches', beaver.branches)
                 return
 
         # pickup
@@ -220,7 +231,7 @@ class AI(BaseAI):
         while fringe:
             inspect = fringe.pop(0)
 
-            for neighbor in inspect.get_neighbors():
+            for neighbor in shuffled(inspect.get_neighbors()):
                 if predicate(neighbor):
                     path = [neighbor]
                     while inspect != start:
@@ -248,8 +259,9 @@ class AI(BaseAI):
         return t.beaver and t.beaver.owner == self.player.opponent and t.beaver.health > 0 and t.beaver.recruited
 
     def friendly_builder(self, t):
-        """a tile containing a friendly builder beaver"""
-        return t.beaver and t.beaver.owner == self.player and t.beaver.job.title == 'Builder'
+        """a tile containing a friendly builder beaver standing next to a tree"""
+        return t.beaver and t.beaver.owner == self.player and t.beaver.job.title == 'Builder' and \
+               any(n and n.spawner and n.spawner.type == 'branches' for n in t.get_neighbors())
 
     # enemy lodge
     def bad_lodge(self, t):
