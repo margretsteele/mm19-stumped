@@ -154,7 +154,7 @@ class AI(BaseAI):
                     print('{} raiding {} branches'.format(beaver, amount))
                     beaver.pickup(n, 'branches', amount)
                 else:
-                    print('{} dropping {} branches so I can raid more'.format(beaver, amount))
+                    print('{} dropping {} branches so I can raid more'.format(beaver, beaver.branches))
                     beaver.drop(beaver.tile, 'branches', beaver.branches)
                 return
 
