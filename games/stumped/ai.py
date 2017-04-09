@@ -93,7 +93,8 @@ class AI(BaseAI):
                 if beaver.job in [JOBS['Builder'], JOBS['Hungry']]:
                     amount = min(beaver.job.carry_limit - (beaver.branches + beaver.food),
                                  beaver.tile.branches - 2)
-                    beaver.pickup(beaver.tile, 'branches', amount)
+                    if amount > 0:
+                        beaver.pickup(beaver.tile, 'branches', amount)
         elif beaver.job == JOBS['Fighter']:
             path = self.find_path_to_goal(beaver.tile, self.punching_bag)
         elif beaver.job == JOBS['Hungry']:
