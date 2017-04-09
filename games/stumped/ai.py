@@ -70,11 +70,11 @@ class AI(BaseAI):
         for lodge in self.player.lodges:
             if lodge.beaver: continue
             builder = JOBS['Builder']
-            fighter = JOBS['Fighter']
+            bulky   = JOBS['Bulky']
             cleanup = JOBS['Hungry']
 
-            job = cleanup if EMPLOYED_BEAVERS[cleanup] < 3 else builder
-            job = fighter if EMPLOYED_BEAVERS[fighter] < 3 else job
+            job = cleanup if EMPLOYED_BEAVERS[cleanup] < 2 else builder
+            job = bulky if EMPLOYED_BEAVERS[bulky] < 3 else job
             if alive_beavers < self.game.free_beavers_count or lodge.food >= job.cost:
                 print('Recruiting {} to {}'.format(job, lodge))
                 job.recruit(lodge)
@@ -97,7 +97,7 @@ class AI(BaseAI):
                                  beaver.tile.branches - 2)
                     if amount > 0:
                         beaver.pickup(beaver.tile, 'branches', amount)
-        elif beaver.job == JOBS['Fighter']:
+        elif beaver.job == JOBS['Bulky']:
             path = self.find_path_to_goal(beaver.tile, self.punching_bag)
         elif beaver.job == JOBS['Hungry']:
             if beaver.branches + beaver.food < beaver.job.carry_limit:
@@ -108,6 +108,12 @@ class AI(BaseAI):
         else:  # beaver.job == JOBS['Builder']
             path = self.find_path_to_goal(beaver.tile, self.source_of_sticks)
             if path: self.claimed_tiles.add(path[-1])
+            if len(path) > 1:  # we are leaving, pick up your pile
+                if beaver.tile.branches > 0:
+                    amount = min(beaver.job.carry_limit - (beaver.branches + beaver.food),
+                                 beaver.tile.branches)
+                    if amount > 0:
+                        beaver.pickup(beaver.tile, 'branches', amount)
 
 
         if len(path) > MIN_PATH_LENGTH:
@@ -126,7 +132,7 @@ class AI(BaseAI):
                     beaver.build_lodge()
                     return
 
-                if beaver.job == JOBS['Fighter']:
+                if beaver.job == JOBS['Bulky']:
                     self.attack(beaver)
                 elif beaver.job == JOBS['Hungry']:
                     self.cleanup(beaver)
@@ -176,11 +182,16 @@ class AI(BaseAI):
 
 
     def attack(self, beaver):
-        for neighbor in shuffled(beaver.tile.get_neighbors()):
-            if self.punching_bag(neighbor):
-                print('{} attacking {}'.format(beaver, neighbor.beaver))
-                beaver.attack(neighbor.beaver)
-                break
+        if beaver.actions > 0:
+            for neighbor in shuffled(beaver.tile.get_neighbors()):
+                if self.punching_bag(neighbor):
+                    print('{} attacking {}'.format(beaver, neighbor.beaver))
+                    beaver.attack(neighbor.beaver)
+                    if neighbor.beaver and beaver.actions > 0:
+                        beaver.attack(neighbor.beaver)
+                    else:
+                        self.attack(beaver)
+                    break
 
     def harvest(self, beaver):
         if beaver.branches < beaver.job.carry_limit:
@@ -232,7 +243,7 @@ class AI(BaseAI):
     # enemy beaver
     def punching_bag(self, t):
         """a tile where I can hit something"""
-        return t.beaver and t.beaver.owner == self.player.opponent
+        return t.beaver and t.beaver.owner == self.player.opponent and t.beaver.health > 0 and t.beaver.recruited
 
     def friendly_builder(self, t):
         """a tile containing a friendly builder beaver"""
