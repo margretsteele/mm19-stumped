@@ -68,8 +68,10 @@ class AI(BaseAI):
             alive_beavers = len([beaver for beaver in self.player.beavers if beaver.health > 0])
             builder = JOBS['Builder']
             fighter = JOBS['Fighter']
+            cleanup = JOBS['Hungry']
 
-            job = fighter if EMPLOYED_BEAVERS[fighter] < 3 else builder
+            job = cleanup if EMPLOYED_BEAVERS[cleanup] < 2 else builder
+            job = fighter if EMPLOYED_BEAVERS[fighter] < 3 else job
             if alive_beavers < self.game.free_beavers_count or lodge.food >= job.cost:
                 print('Recruiting {} to {}'.format(job, lodge))
                 job.recruit(lodge)
@@ -78,93 +80,100 @@ class AI(BaseAI):
             self.do_something(beaver)
         return True
 
+    def move_beaver(self, beaver):
+        MIN_PATH_LENGTH = 1
+        # are sitting on our lodge or not
+        if beaver.tile.lodge_owner == self.player:
+            path = self.find_path_to_goal(beaver.tile, self.not_my_lodge)
+            MIN_PATH_LENGTH = 0
+        elif beaver.job == JOBS['Fighter']:
+            path = self.find_path_to_goal(beaver.tile, self.punching_bag)
+        elif beaver.job == JOBS['Hungry']:
+            if beaver.branches < beaver.job.carry_limit:
+                path = self.find_path_to_goal(beaver.tile, self.pile_of_sticks)
+            else:
+                path = self.find_path_to_goal(beaver.tile, self.friendly_builder)
+        else:  # beaver.job == JOBS['Builder']
+            path = self.find_path_to_goal(beaver.tile, self.source_of_sticks)
+
+        if len(path) > MIN_PATH_LENGTH:
+            #print('Moving {} towards {}'.format(beaver, path[-1]))
+            beaver.move(path[0])
+
     def do_something(self, beaver):
         if beaver and beaver.turns_distracted == 0 and beaver.health > 0:
             if beaver.moves >= 2:
-                if beaver.job == JOBS['Fighter']:
-                    path = self.find_path_to_goal(beaver.tile, self.punching_bag)
-                else:
-                    path = self.find_path_to_goal(beaver.tile, self.source_of_sticks)
-                if beaver.tile.lodge_owner == self.player:
-                    path = self.find_path_to_goal(beaver.tile, self.not_my_lodge)
-                    if len(path) > 0:
-                        beaver.move(path[0])
-                if len(path) > 1:
-                    print('Moving {} towards {}'.format(beaver, path[-1]))
-                    beaver.move(path[0])
-
+                self.move_beaver(beaver)
 
             if beaver.actions > 0:
-                load = beaver.branches + beaver.food
-
                 # if can lodge, lodge yo
                 if (beaver.branches + beaver.tile.branches) >= self.player.branches_to_build_lodge and not beaver.tile.lodge_owner:
                     print('{} building lodge'.format(beaver))
                     beaver.build_lodge()
 
-                # Do a random action!
-                action = random_element(['pickup', 'drop', 'harvest'])
                 if beaver.job == JOBS['Fighter']:
-                    action = 'attack'
+                    self.attack(beaver)
+                elif beaver.job == JOBS['Hungry']:
+                    self.cleanup(beaver)
+                else: # if we are a builder
+                    self.harvest(beaver)
 
-                if action == 'attack':
-                    for neighbor in shuffled(beaver.tile.get_neighbors()):
-                        if neighbor.beaver and neighbor.beaver.owner == self.player.opponent:
-                            print('{} attacking {}'.format(beaver, neighbor.beaver))
-                            beaver.attack(neighbor.beaver)
-                            break
+    def cleanup(self, beaver):
+        load = beaver.branches + beaver.food
+        # pickup
+        if load < beaver.job.carry_limit:
+            neighbors = beaver.tile.get_neighbors()
+            neighbors.append(beaver.tile)
+            pickup_tiles = shuffled(neighbors)
 
-                elif action == 'pickup':
-                    neighbors = beaver.tile.get_neighbors()
-                    neighbors.append(beaver.tile)
-                    pickup_tiles = shuffled(neighbors)
+            for tile in pickup_tiles:
+                if tile.lodge_owner == self.player:
+                    continue
+                # try to pickup branches
+                if tile.branches > 0:
+                    pick_up_amnt = min(beaver.job.carry_limit, tile.branches)
+                    print('{} picking up branches'.format(beaver))
+                    beaver.pickup(tile, 'branches', pick_up_amnt)
+                    break
+                # try to pickup food
+                elif tile.food > 0:
+                    pick_up_amnt = min(beaver.job.carry_limit, tile.food)
+                    print('{} picking up food'.format(beaver))
+                    beaver.pickup(tile, 'food', 1)
+                    break
+        # drop
+        else:
+            for neighbor in shuffled(beaver.tile.get_neighbors()):
+                tile_to_drop_on = None
+                if self.friendly_builder(neighbor):
+                    tile_to_drop_on = neighbor
+                    break
 
-                    if load < beaver.job.carry_limit:
-                        for tile in pickup_tiles:
-                            if tile.lodge_owner == self.player:
-                                continue
-                            # try to pickup branches
-                            if tile.branches > 0:
-                                print('{} picking up branches'.format(beaver))
-                                beaver.pickup(tile, 'branches', 1)
-                                break
-                            # try to pickup food
-                            elif tile.food > 0:
-                                print('{} picking up food'.format(beaver))
-                                beaver.pickup(tile, 'food', 1)
-                                break
+            if tile_to_drop_on:
+                if beaver.branches > 0:
+                    print('{} dropping 1 branch'.format(beaver))
+                    beaver.drop(tile_to_drop_on, 'branches', beaver.branches)
+                elif beaver.food > 0:
+                    print('{} dropping 1 food'.format(beaver))
+                    beaver.drop(tile_to_drop_on, 'food', beaver.food)
 
-                elif action == 'drop':
-                    neighbors = beaver.tile.get_neighbors()
-                    neighbors.append(beaver.tile)
-                    drop_tiles = shuffled(neighbors)
 
-                    tile_to_drop_on = None
-                    for tile in drop_tiles:
-                        if not tile.spawner:
-                            tile_to_drop_on = tile
-                            break
+    def attack(self, beaver):
+        for neighbor in shuffled(beaver.tile.get_neighbors()):
+            if self.punching_bag(neighbor):
+                print('{} attacking {}'.format(beaver, neighbor.beaver))
+                beaver.attack(neighbor.beaver)
+                break
 
-                    if tile_to_drop_on:
-                        if beaver.branches > 0:
-                            print('{} dropping 1 branch'.format(beaver))
-                            beaver.drop(tile_to_drop_on, 'branches', 1)
-                        elif beaver.food > 0:
-                            print('{} dropping 1 food'.format(beaver))
-                            beaver.drop(tile_to_drop_on, 'food', 1)
-
-                elif action == 'harvest':
-                    if load < beaver.job.carry_limit:
-                        for neighbor in shuffled(beaver.tile.get_neighbors()):
-                            if neighbor.spawner and neighbor.lodge_owner != self.player:
-                                print('{} harvesting {}'.format(beaver, neighbor.spawner))
-                                beaver.harvest(neighbor.spawner)
-                                break
-
-    def find_path_to_tile(self, start, goal):
-        def p(t):
-            return t == goal
-        return self.find_path_to_goal(start, p)
+    def harvest(self, beaver):
+        if beaver.branches < beaver.job.carry_limit:
+            for neighbor in shuffled(beaver.tile.get_neighbors()):
+                if neighbor.spawner and neighbor.spawner.type == 'branches' and neighbor.lodge_owner != self.player:
+                    print('{} harvesting {}'.format(beaver, neighbor.spawner))
+                    beaver.harvest(neighbor.spawner)
+                    break
+        else:
+            beaver.drop(beaver.tile, 'branches', beaver.branches)
 
     def find_path_to_goal(self, start, predicate):
         """A more advanced path finder that (but still BFS) that takes a
@@ -197,13 +206,21 @@ class AI(BaseAI):
         return []
 
     def source_of_sticks(self, t):
-        """a tile where I can pick up sticks"""
+        """a tile where I can harvest sticks (a tree)"""
         return t.spawner and not t.spawner.has_been_harvested and t.spawner.type == 'branches'
+
+    def pile_of_sticks(self, t):
+        """or sticks lying around or a lodge"""
+        return t.branches > 0 and t.beaver and t.beaver.owner != self.player and t.lodge_owner != self.player
 
     # enemy beaver
     def punching_bag(self, t):
         """a tile where I can hit something"""
         return t.beaver and t.beaver.owner == self.player.opponent
+
+    def friendly_builder(self, t):
+        """a tile containing a friendly builder beaver"""
+        return t.beaver and t.beaver.owner == self.player and t.beaver.job.title == 'Builder'
 
     # enemy lodge
     def bad_lodge(self, t):
