@@ -133,8 +133,20 @@ class AI(BaseAI):
                 else: # if we are a builder
                     self.harvest(beaver)
 
+            # second chance to move, after acting
+            if beaver.moves >= 2:
+                self.move_beaver(beaver)
+
+
     def cleanup(self, beaver):
         load = beaver.branches + beaver.food
+        # if an undistracted enemy is in range of us, priority distract
+        for tile in beaver.tile.get_neighbors():
+            if tile.beaver and tile.beaver.owner == self.player.opponent and tile.beaver.turns_distracted == 0:
+                print('{} distracting {}'.format(beaver, tile.beaver))
+                beaver.attack(tile.beaver)
+                return
+
         # pickup
         if load < beaver.job.carry_limit:
             neighbors = beaver.tile.get_neighbors()
@@ -147,13 +159,13 @@ class AI(BaseAI):
                 # try to pickup branches
                 if tile.branches > 0:
                     pick_up_amnt = min((beaver.job.carry_limit - load), tile.branches)
-                    print('{} picking up branches'.format(beaver))
+                    print('{} picking up {} branches'.format(beaver, pick_up_amnt))
                     beaver.pickup(tile, 'branches', pick_up_amnt)
                     break
                 # try to pickup food
                 elif tile.food > 0:
                     pick_up_amnt = min((beaver.job.carry_limit - load), tile.food)
-                    print('{} picking up food'.format(beaver))
+                    print('{} picking up {} food'.format(beaver, pick_up_amnt))
                     beaver.pickup(tile, 'food', pick_up_amnt)
                     break
         # drop
@@ -181,10 +193,6 @@ class AI(BaseAI):
                 if self.punching_bag(neighbor):
                     print('{} attacking {}'.format(beaver, neighbor.beaver))
                     beaver.attack(neighbor.beaver)
-                    if neighbor.beaver and beaver.actions > 0:
-                        beaver.attack(neighbor.beaver)
-                    else:
-                        self.attack(beaver)
                     break
 
     def harvest(self, beaver):
