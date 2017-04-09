@@ -28,6 +28,7 @@ JOBS = {}
 
 class AI(BaseAI):
     """ The basic AI functions that are the same between games. """
+    claimed_tiles = set()
 
     def get_name(self):
         """ This is the name you send to the server so your AI will control the player named this string.
@@ -60,6 +61,7 @@ class AI(BaseAI):
 
     def run_turn(self):
         EMPLOYED_BEAVERS = collections.defaultdict(int)
+        self.claimed_tiles = set()
         for beaver in self.player.beavers:
             EMPLOYED_BEAVERS[beaver.job] += 1
 
@@ -86,15 +88,24 @@ class AI(BaseAI):
         if beaver.tile.lodge_owner == self.player:
             path = self.find_path_to_goal(beaver.tile, self.not_my_lodge)
             MIN_PATH_LENGTH = 0
+            distpath = self.find_path_to_goal(beaver.tile, self.punching_bag)
+            if len(distpath) > 10:
+                if beaver.job in [JOBS['Builder'], JOBS['Hungry']]:
+                    amount = min(beaver.job.carry_limit - (beaver.branches + beaver.food),
+                                 beaver.tile.branches - 2)
+                    beaver.pickup(beaver.tile, 'branches', amount)
         elif beaver.job == JOBS['Fighter']:
             path = self.find_path_to_goal(beaver.tile, self.punching_bag)
         elif beaver.job == JOBS['Hungry']:
             if beaver.branches + beaver.food < beaver.job.carry_limit:
                 path = self.find_path_to_goal(beaver.tile, self.pile_of_sticks)
+                if path: self.claimed_tiles.add(path[-1])
             else:
                 path = self.find_path_to_goal(beaver.tile, self.friendly_builder)
         else:  # beaver.job == JOBS['Builder']
             path = self.find_path_to_goal(beaver.tile, self.source_of_sticks)
+            if path: self.claimed_tiles.add(path[-1])
+
 
         if len(path) > MIN_PATH_LENGTH:
             #print('Moving {} towards {}'.format(beaver, path[-1]))
@@ -178,7 +189,7 @@ class AI(BaseAI):
             beaver.drop(beaver.tile, 'branches', beaver.branches)
 
     def find_path_to_goal(self, start, predicate):
-        """A more advanced path finder that (but still BFS) that takes a
+        """A more advanced path finder (but still BFS) that takes a
         predicate function. Returns a valid path from start to the closest
         tile that satisfies the predicatie function.
         """
@@ -213,7 +224,7 @@ class AI(BaseAI):
 
     def pile_of_sticks(self, t):
         """or sticks lying around or a lodge"""
-        return t.branches > 0 and t.beaver and t.beaver.owner != self.player and t.lodge_owner != self.player
+        return t.branches > 0 and t.beaver and t.beaver.owner != self.player and t.lodge_owner != self.player and t not in self.claimed_tiles
 
     # enemy beaver
     def punching_bag(self, t):
@@ -232,7 +243,7 @@ class AI(BaseAI):
     # food source
     def source_of_food(self, t):
         """a tile where I can pick up sticks"""
-        return t.spawner and not t.spawner.has_been_harvested and t.spawner.type == 'food'
+        return t.spawner and not t.spawner.has_been_harvested and t.spawner.type == 'food' and t not in self.claimed_tiles
 
     def not_my_lodge(self, t):
         """not my lodge"""
